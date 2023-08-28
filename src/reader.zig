@@ -210,6 +210,25 @@ pub fn read_atom(a: std.mem.Allocator, buf: anytype) MalError!*MalData {
         '{' => {
             try read_hashmap(a, buf, value);
         },
+        '@' => {
+            value.* = MalData{
+                .list = std.ArrayList(*MalData).init(a),
+            };
+
+            var v = try MalData.init(a);
+            v.* = MalData{
+                .symbol = std.ArrayList(u8).init(a),
+            };
+            var w = v.symbol.writer();
+            try w.print("deref", .{});
+
+            try value.list.append(v);
+
+            var v2 = try MalData.init(a);
+            try parseSymbol(a, buf, v2);
+
+            try value.list.append(v2);
+        },
         '"' => try read_string(a, buf, value),
         '0'...'9' => {
             try buf.putBackByte(byte);

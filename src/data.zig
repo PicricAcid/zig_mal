@@ -15,6 +15,7 @@ pub const MalData = union(enum) {
     hashmap: std.StringArrayHashMap(*MalData),
     function: *const fn (a: std.mem.Allocator, args: *MalData) MalError!*MalData,
     lambda: *Lambda,
+    atom: *Atom,
 
     const Self = @This();
 
@@ -55,6 +56,9 @@ pub const MalData = union(enum) {
             },
             .function => {},
             .lambda => |l| l.deinit(a),
+            .atom => |at| {
+                at.deinit(a);
+            },
         }
 
         a.destroy(self);
@@ -143,6 +147,11 @@ pub const MalData = union(enum) {
                     .lambda = lambda,
                 };
             },
+            .atom => |at| {
+                result.* = MalData{
+                    .atom = at,
+                };
+            },
         }
 
         return result;
@@ -172,5 +181,31 @@ pub const Lambda = struct {
         self.args.deinit(a);
         self.body.deinit(a);
         self.env.deinit(a);
+    }
+};
+
+pub const Atom = struct {
+    ref_count: i32,
+    atom: **MalData,
+
+    const Self = @This();
+
+    pub fn init(a: std.mem.Allocator, data: *MalData) MalError!*Atom {
+        var result = try a.create(Atom);
+        const new_atom = try a.create(*MalData);
+        new_atom.* = try data.copy(a);
+
+        result.* = Atom{
+            .ref_count = 1,
+            .atom = new_atom,
+        };
+
+        return result;
+    }
+
+    pub fn deinit(self: *Self, a: std.mem.Allocator) void {
+        if (self.ref_count <= 1) {
+            self.atom.*.deinit(a);
+        }
     }
 };

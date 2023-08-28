@@ -45,4 +45,14 @@ pub const MalEnv = struct {
             return MalError.EnvFindError;
         }
     }
+
+    pub fn copy(self: *Self, a: std.mem.Allocator) MalError!*Self {
+        var new_env = try a.create(MalEnv);
+        new_env.* = MalEnv{
+            .env = self.env,
+            .outer = self,
+        };
+
+        return new_env;
+    }
 };
