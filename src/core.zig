@@ -6,6 +6,7 @@ const MalEnv = @import("env.zig").MalEnv;
 const Reader = @import("reader.zig");
 const Printer = @import("printer.zig");
 const Atom = @import("data.zig").Atom;
+const Utils = @import("utils.zig");
 
 const read_from_string = @import("step6.zig").read_from_string;
 const apply_function = @import("step6.zig").apply_function;
@@ -38,6 +39,8 @@ pub const gamma = [_] FuncPair{
     FuncPair{ .name = "deref", .func = &mal_deref},
     FuncPair{ .name = "reset!", .func = &mal_reset},
     FuncPair{ .name = "swap!", .func = &mal_swap},
+    FuncPair{ .name = "cons", .func = &mal_cons},
+    FuncPair{ .name = "concat", .func = &mal_concat},
 };
 
 pub fn make_env(a: std.mem.Allocator) MalError!*MalEnv {
@@ -511,6 +514,50 @@ fn mal_swap(a: std.mem.Allocator, args: *MalData) MalError!*MalData {
         } else {
             return MalError.FuncArgError;
         }
+    } else {
+        return MalError.FuncArgError;
+    }
+}
+
+fn mal_cons(a: std.mem.Allocator, args: *MalData) MalError!*MalData {
+    var arg_list = try arg_check(args);
+    var l = arg_list.list;
+
+    if (l.items.len >= 3) {
+        if (l.items[1].* == MalData.string) {
+            if (l.items[2].* == MalData.list) {
+                var result = try MalData.init(a);
+                defer result.deinit(a);
+
+                var ll = l.items[2].list;
+                result.* = MalData{
+                    .list = std.ArrayList(*MalData).init(a),
+                };
+                for (ll.items) |i| {
+                    var str = try Utils.malstr_concat(a, l.items[1], i);
+                    try result.list.append(str);
+                }
+
+                return try result.copy(a);
+            } else {
+                return MalError.FuncArgError;
+            }
+        } else {
+            return MalError.FuncArgError;
+        }
+    } else {
+        return MalError.FuncArgError;
+    }
+}
+
+fn mal_concat(a: std.mem.Allocator, args: *MalData) MalError!*MalData {
+    var arg_list = try arg_check(args);
+    var l = arg_list.list;
+
+    if (l.items[1].* == MalData.list) {
+        var result = try Utils.mallist_concat(a, l.items[1]);
+
+        return result;
     } else {
         return MalError.FuncArgError;
     }
