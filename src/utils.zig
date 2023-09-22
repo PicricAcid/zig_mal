@@ -38,25 +38,43 @@ pub fn malstr_concat(a: std.mem.Allocator, str1: *MalData, str2: *MalData) MalEr
 }
 
 pub fn mallist_concat(a: std.mem.Allocator, str_list: *MalData) MalError!*MalData {
-    if (str_list.* == MalData.list) {
-        if (str_list.list.items[0].* == MalData.string) {
-            var result = try str_list.list.items[0].copy(a);
+    switch (str_list.*) {
+        .list => |l| {
+            if (l.items[0].* == MalData.string) {
+                var result = try l.items[0].copy(a);
 
-            for (str_list.list.items[1..]) |str| {
-                if (str.* == MalData.string) {
-                    for (str.string.items) |s| {
-                        try result.string.append(s);
+                for (l.items[1..]) |str| {
+                    if (str.* == MalData.string) {
+                        for (str.string.items) |s| {
+                            try result.string.append(s);
+                        }
+                    } else {
+                        return MalError.FuncArgError;
                     }
-                } else {
-                    return MalError.FuncArgError;
                 }
+                return result;
+            } else {
+                return MalError.FuncArgError;
             }
+        },
+        .vector => |v| {
+            if (v.items[0].* == MalData.string) {
+                var result = try v.items[0].copy(a);
 
-            return result;
-        } else {
-            return MalError.FuncArgError;
-        }
-    } else {
-        return MalError.FuncArgError;
+                for (v.items[1..]) |str| {
+                    if (str.* == MalData.string) {
+                        for (str.string.items) |s| {
+                            try result.string.append(s);
+                        }
+                    } else {
+                        return MalError.FuncArgError;
+                    }
+                }
+                return result;
+            } else {
+                return MalError.FuncArgError;
+            }
+        },
+        else => return MalError.FuncArgError,
     }
 }

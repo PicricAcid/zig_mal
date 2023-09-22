@@ -66,7 +66,7 @@ pub fn pr_str(a: std.mem.Allocator, root: *MalData) MalError!*MalData {
         .number => |n| {
             var str = std.ArrayList(u8).init(a);
             var w = str.writer();
-             try w.print("{}\n", .{n});
+            try w.print("{}\n", .{n});
             
             return try new_string(a, str);
         },

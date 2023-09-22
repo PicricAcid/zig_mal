@@ -41,6 +41,7 @@ pub const gamma = [_] FuncPair{
     FuncPair{ .name = "swap!", .func = &mal_swap},
     FuncPair{ .name = "cons", .func = &mal_cons},
     FuncPair{ .name = "concat", .func = &mal_concat},
+    FuncPair{ .name = "vec", .func = &mal_vec},
 };
 
 pub fn make_env(a: std.mem.Allocator) MalError!*MalEnv {
@@ -525,22 +526,36 @@ fn mal_cons(a: std.mem.Allocator, args: *MalData) MalError!*MalData {
 
     if (l.items.len >= 3) {
         if (l.items[1].* == MalData.string) {
-            if (l.items[2].* == MalData.list) {
-                var result = try MalData.init(a);
-                defer result.deinit(a);
+            switch (l.items[2].*) {
+                .list => |ll| {
+                    var result = try MalData.init(a);
+                    defer result.deinit(a);
 
-                var ll = l.items[2].list;
-                result.* = MalData{
-                    .list = std.ArrayList(*MalData).init(a),
-                };
-                for (ll.items) |i| {
-                    var str = try Utils.malstr_concat(a, l.items[1], i);
-                    try result.list.append(str);
-                }
+                    result.* = MalData{
+                        .list = std.ArrayList(*MalData).init(a),
+                    };
+                    for (ll.items) |i| {
+                        var str = try Utils.malstr_concat(a, l.items[1], i);
+                        try result.list.append(str);
+                    }
 
-                return try result.copy(a);
-            } else {
-                return MalError.FuncArgError;
+                    return try result.copy(a);
+                },
+                .vector => |v| {
+                    var result = try MalData.init(a);
+                    defer result.deinit(a);
+
+                    result.* = MalData{
+                        .list = std.ArrayList(*MalData).init(a),
+                    };
+                    for (v.items) |i| {
+                        var str = try Utils.malstr_concat(a, l.items[1], i);
+                        try result.list.append(str);
+                    }
+
+                    return try result.copy(a);
+                },
+                else => return MalError.FuncArgError,
             }
         } else {
             return MalError.FuncArgError;
@@ -554,10 +569,28 @@ fn mal_concat(a: std.mem.Allocator, args: *MalData) MalError!*MalData {
     var arg_list = try arg_check(args);
     var l = arg_list.list;
 
-    if (l.items[1].* == MalData.list) {
-        var result = try Utils.mallist_concat(a, l.items[1]);
+    return  try Utils.mallist_concat(a, l.items[1]);
+}
 
-        return result;
+fn mal_vec(a: std.mem.Allocator, args: *MalData) MalError!*MalData {
+    var arg_list = try arg_check(args);
+    var l = arg_list.list;
+
+    if (l.items[1].* == MalData.list) {
+        var result = try MalData.init(a);
+        defer result.deinit(a);
+
+        result.* = MalData{
+            .vector = std.ArrayList(*MalData).init(a),
+        };
+
+        for (l.items[1].list.items) |i| {
+            try result.vector.append(i);
+        }
+
+        return try result.copy(a);
+    } else if (l.items[1].* == MalData.vector) {
+        return try l.items[1].copy(a);
     } else {
         return MalError.FuncArgError;
     }
